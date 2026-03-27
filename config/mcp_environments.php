@@ -43,7 +43,7 @@ return [
     'default_environment' => 'dev',
     
     'security' => [
-        'enable_auth' => true,
+        'enable_auth' => true, // 启用鉴权
         'allow_sql_keywords' => [
             'SELECT', 'FROM', 'WHERE', 'ORDER BY', 'LIMIT', 'OFFSET',
             'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'OUTER JOIN',
