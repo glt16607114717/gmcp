@@ -31,15 +31,15 @@ class McpController
             $jsonrpcRequest = json_decode($content, true);
             
             if (json_last_error() !== JSON_ERROR_NONE) {
-                return McpResponseService::error(null, -32700, 'Parse error', 'Invalid JSON', $accept);
+                return McpResponseService::error(null, -32700, 'Parse error', 'Invalid JSON');
             }
             
             if (!isset($jsonrpcRequest['jsonrpc']) || $jsonrpcRequest['jsonrpc'] !== '2.0') {
-                return McpResponseService::error($jsonrpcRequest['id'] ?? null, -32600, 'Invalid Request', 'Invalid JSON-RPC version', $accept);
+                return McpResponseService::error($jsonrpcRequest['id'] ?? null, -32600, 'Invalid Request', 'Invalid JSON-RPC version');
             }
             
             if (!isset($jsonrpcRequest['method'])) {
-                return McpResponseService::error($jsonrpcRequest['id'] ?? null, -32600, 'Invalid Request', 'Missing method', $accept);
+                return McpResponseService::error($jsonrpcRequest['id'] ?? null, -32600, 'Invalid Request', 'Missing method');
             }
             
             $method = $jsonrpcRequest['method'];
@@ -65,12 +65,12 @@ class McpController
                     return $this->handleToolsCall($id, $params, $username, $password, $accept);
                 
                 default:
-                    return McpResponseService::error($id, -32601, 'Method not found', "Method '{$method}' not found", $accept);
+                    return McpResponseService::error($id, -32601, 'Method not found', "Method '{$method}' not found");
             }
             
         } catch (\Exception $e) {
             file_put_contents(__DIR__ . '/../../runtime/mcp_debug.log', date('Y-m-d H:i:s') . " Error: " . $e->getMessage() . "\n", FILE_APPEND);
-            return McpResponseService::error(null, -32603, 'Internal error', $e->getMessage(), '');
+            return McpResponseService::error(null, -32603, 'Internal error', $e->getMessage());
         }
     }
     
@@ -123,7 +123,7 @@ class McpController
         $enableAuth = config('mcp_mysql.security.enable_auth', false);
         
         if ($enableAuth && (empty($username) || empty($password))) {
-            return McpResponseService::error($id, -32602, 'Invalid params', 'Missing auth credentials', $accept);
+            return McpResponseService::error($id, -32602, 'Invalid params', 'Missing auth credentials');
         }
         
         $arguments['username'] = $username;
@@ -132,7 +132,7 @@ class McpController
         $tool = ToolManager::getTool($toolName);
         
         if (!$tool) {
-            return McpResponseService::error($id, -32601, 'Method not found', "Tool '{$toolName}' not found", $accept);
+            return McpResponseService::error($id, -32601, 'Method not found', "Tool '{$toolName}' not found");
         }
         
         set_time_limit(30);

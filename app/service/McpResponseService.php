@@ -6,7 +6,7 @@ use think\Response;
 
 class McpResponseService
 {
-    public static function success($id, $result, $accept): Response
+    public static function success($id, $result): Response
     {
         $response = [
             'jsonrpc' => '2.0',
@@ -26,7 +26,7 @@ class McpResponseService
         ]);
     }
     
-    public static function error($id, $code, $message, $data = null, $accept): Response
+    public static function error($id, $code, $message, $data = null): Response
     {
         $error = [
             'code' => $code,
