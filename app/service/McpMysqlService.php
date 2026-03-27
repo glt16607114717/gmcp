@@ -177,12 +177,60 @@ class McpMysqlService
         $dangerousKeywords = $this->config['security']['dangerous_keywords'];
         
         foreach ($dangerousKeywords as $keyword) {
-            if (stripos($sql, $keyword) !== false) {
+            if ($this->isDangerousKeywordUsed($sql, $keyword)) {
                 if ($readOnly) {
                     throw new \Exception("当前环境只读，不允许执行 {$keyword} 操作");
                 }
             }
         }
+    }
+    
+    protected function isDangerousKeywordUsed(string $sql, string $keyword): bool
+    {
+        $sqlUpper = strtoupper($sql);
+        $keywordUpper = strtoupper($keyword);
+        
+        $sqlType = $this->getSqlType($sql);
+        
+        if ($sqlType === $keywordUpper) {
+            return true;
+        }
+        
+        $position = stripos($sql, $keyword);
+        if ($position === false) {
+            return false;
+        }
+        
+        $sqlLength = strlen($sql);
+        $keywordLength = strlen($keyword);
+        
+        while ($position !== false) {
+            if ($this->isKeywordAsCommand($sql, $position, $sqlLength, $keywordLength)) {
+                return true;
+            }
+            $position = stripos($sql, $keyword, $position + 1);
+        }
+        
+        return false;
+    }
+    
+    protected function isKeywordAsCommand(string $sql, int $position, int $sqlLength, int $keywordLength): bool
+    {
+        $beforeChar = $position > 0 ? $sql[$position - 1] : ' ';
+        $afterChar = $position + $keywordLength < $sqlLength ? $sql[$position + $keywordLength] : '';
+        
+        if ($beforeChar === '.' || $beforeChar === '_') {
+            return false;
+        }
+        
+        if ($afterChar === '_' || $afterChar === '.') {
+            return false;
+        }
+        
+        $validBeforeChars = [' ', '(', ';', "\n", "\r", "\t"];
+        $validAfterChars = [' ', '(', "\n", "\r", "\t", ';', ')'];
+        
+        return in_array($beforeChar, $validBeforeChars) && in_array($afterChar, $validAfterChars);
     }
     
     protected function getSqlType(string $sql): string
