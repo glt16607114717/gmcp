@@ -16,69 +16,10 @@ class McpMysqlService
         $this->environment = $environment ?: $this->config['default_environment'];
     }
     
-    public function authenticate(string $username, string $password): bool
+    public function executeSql(string $sql, string $dbGroup = 'main'): array
     {
-        $prodConfig = $this->config['environments']['prod'];
-        
-        if (!$prodConfig) {
-            throw new \Exception('正式环境配置不存在');
-        }
-        
-        try {
-            $db = Db::connect([
-                'type' => 'mysql',
-                'hostname' => $prodConfig['hostname'],
-                'database' => $prodConfig['database'],
-                'username' => $prodConfig['username'],
-                'password' => $prodConfig['password'],
-                'hostport' => $prodConfig['hostport'],
-                'charset' => 'utf8mb4',
-            ]);
-            
-            $userAuth = $db->table('r_user_auth')
-                ->where('identity_type', 0)
-                ->where('identifier', $username)
-                ->where('is_delete', 0)
-                ->find();
-            
-            if (!$userAuth) {
-                file_put_contents(__DIR__ . '/../../runtime/mcp_debug.log', date('Y-m-d H:i:s') . " Auth failed: User not found, username: {$username}\n", FILE_APPEND);
-                return false;
-            }
-            
-            $user = $db->table('r_user')->where('id', $userAuth['user_id'])->where('is_delete', 0)->where('status', 1)->find();
-            
-            if (!$user) {
-                file_put_contents(__DIR__ . '/../../runtime/mcp_debug.log', date('Y-m-d H:i:s') . " Auth failed: User disabled, username: {$username}\n", FILE_APPEND);
-                return false;
-            }
-            
-            $salt = $userAuth['salt'] ?? '';
-            $inputPasswordHash = md5($password . $salt);
-            $dbPasswordHash = $userAuth['credential'] ?? '';
-            
-            if ($inputPasswordHash === $dbPasswordHash) {
-                file_put_contents(__DIR__ . '/../../runtime/mcp_debug.log', date('Y-m-d H:i:s') . " Auth success: {$username}\n", FILE_APPEND);
-                return true;
-            }
-            
-            file_put_contents(__DIR__ . '/../../runtime/mcp_debug.log', date('Y-m-d H:i:s') . " Auth failed: Password mismatch for {$username}\n", FILE_APPEND);
-            return false;
-            
-        } catch (\Exception $e) {
-            file_put_contents(__DIR__ . '/../../runtime/mcp_debug.log', date('Y-m-d H:i:s') . " Auth error: " . $e->getMessage() . "\n", FILE_APPEND);
-            return false;
-        }
-    }
-    
-    public function executeSql(string $sql, string $username, string $password): array
-    {
-        file_put_contents(__DIR__ . '/../../runtime/mcp_debug.log', date('Y-m-d H:i:s') . " Starting executeSql, auth enabled: " . ($this->config['security']['enable_auth'] ? 'true' : 'false') . "\n", FILE_APPEND);
-        
-        if ($this->config['security']['enable_auth'] && !$this->authenticate($username, $password)) {
-            throw new \Exception('鉴权失败: 用户名或密码错误');
-        }
-        
+        file_put_contents(__DIR__ . '/../../runtime/mcp_debug.log', date('Y-m-d H:i:s') . " Starting executeSql\n", FILE_APPEND);
+
         $envConfig = $this->getEnvironmentConfig();
         
         if (!$envConfig) {
@@ -87,10 +28,10 @@ class McpMysqlService
         
         $this->checkSqlPermissions($sql, $envConfig['read_only']);
         
-        file_put_contents(__DIR__ . '/../../runtime/mcp_debug.log', date('Y-m-d H:i:s') . " Getting connection\n", FILE_APPEND);
+        file_put_contents(__DIR__ . '/../../runtime/mcp_debug.log', date('Y-m-d H:i:s') . " Getting connection for group: {$dbGroup}\n", FILE_APPEND);
         
         try {
-            $connection = $this->getConnection($username, $password);
+            $connection = $this->getConnection($dbGroup);
             file_put_contents(__DIR__ . '/../../runtime/mcp_debug.log', date('Y-m-d H:i:s') . " Connection established\n", FILE_APPEND);
         } catch (\Exception $e) {
             $errorMsg = "数据库连接失败: " . $e->getMessage();
@@ -128,6 +69,7 @@ class McpMysqlService
                 'success' => true,
                 'environment' => $this->environment,
                 'environment_name' => $envConfig['name'],
+                'database_group' => $dbGroup,
                 'sql_type' => $sqlType,
                 'execution_time_ms' => $executionTime,
                 'read_only' => $envConfig['read_only'],
@@ -141,6 +83,7 @@ class McpMysqlService
             return [
                 'success' => false,
                 'environment' => $this->environment,
+                'database_group' => $dbGroup,
                 'error' => [
                     'message' => $e->getMessage(),
                     'sql' => $sql,
@@ -155,17 +98,24 @@ class McpMysqlService
         return $this->config['environments'][$this->environment] ?? null;
     }
     
-    protected function getConnection(string $username, string $password)
+    protected function getConnection(string $dbGroup = 'main')
     {
         $envConfig = $this->getEnvironmentConfig();
+        $mysqlConfig = $envConfig['mysql'] ?? [];
         
+        if (!isset($mysqlConfig[$dbGroup])) {
+            throw new \Exception("数据库分组不存在: {$dbGroup}，可用分组: " . implode(', ', array_keys($mysqlConfig)));
+        }
+        
+        $dbConfig = $mysqlConfig[$dbGroup];
+
         return Db::connect([
             'type' => 'mysql',
-            'hostname' => $envConfig['hostname'],
-            'database' => $envConfig['database'],
-            'username' => $envConfig['username'],
-            'password' => $envConfig['password'],
-            'hostport' => $envConfig['hostport'],
+            'hostname' => $dbConfig['hostname'] ?? '',
+            'database' => $dbConfig['database'] ?? '',
+            'username' => $dbConfig['username'] ?? '',
+            'password' => $dbConfig['password'] ?? '',
+            'hostport' => $dbConfig['hostport'] ?? '3306',
             'charset' => 'utf8mb4',
         ]);
     }

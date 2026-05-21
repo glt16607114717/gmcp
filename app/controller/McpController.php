@@ -76,10 +76,12 @@ class McpController
     
     private function handleInitialize($id, $params, $accept): Response
     {
-        $protocolVersion = $params['protocolVersion'] ?? '2025-11-25';
+        $supportedVersions = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05', '2024-10-07'];
+        $clientVersion = $params['protocolVersion'] ?? '2024-11-05';
+        $negotiatedVersion = in_array($clientVersion, $supportedVersions) ? $clientVersion : '2024-11-05';
         
         return McpResponseService::success($id, [
-            'protocolVersion' => '2025-11-25',
+            'protocolVersion' => $negotiatedVersion,
             'capabilities' => [
                 'tools' => [
                     'listChanged' => false,
@@ -119,15 +121,19 @@ class McpController
     {
         $toolName = $params['name'] ?? '';
         $arguments = $params['arguments'] ?? [];
-        
-        $enableAuth = config('mcp_mysql.security.enable_auth', false);
-        
-        if ($enableAuth && (empty($username) || empty($password))) {
-            return McpResponseService::error($id, -32602, 'Invalid params', 'Missing auth credentials');
+
+        $enableAuth = config('mcp_environments.security.enable_auth', false);
+
+        if ($enableAuth) {
+            if (empty($username) || empty($password)) {
+                return McpResponseService::error($id, -32602, 'Invalid params', 'Missing auth credentials');
+            }
+
+            $authService = new \app\service\AuthService();
+            if (!$authService->authenticate($username, $password)) {
+                return McpResponseService::error($id, -32602, 'Invalid params', '鉴权失败: 用户名或密码错误');
+            }
         }
-        
-        $arguments['username'] = $username;
-        $arguments['password'] = $password;
         
         $tool = ToolManager::getTool($toolName);
         
