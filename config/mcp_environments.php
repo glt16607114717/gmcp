@@ -130,4 +130,26 @@ return [
             'CREATE', 'TRUNCATE', 'GRANT', 'REVOKE',
         ],
     ],
+
+    'wecom_bot' => [
+        'webhook_url' => 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=7d8cc1f0-db26-42b5-803b-3390f744691c',
+    ],
+
+    'tapd' => [
+        'workspace_id' => '66680814',
+        'access_token' => '487883fdbfd145fbc41ea44df8be5be8790a9291',
+        'api_user' => '13380174717',
+        'api_password' => 'glt01054717@',
+        'api_base_url' => 'https://api.tapd.cn',
+    ],
+
+    'wecom_mail' => [
+        'host' => 'smtp.exmail.qq.com',
+        'port' => 465,
+        'encryption' => 'ssl',
+        'username' => 'nndrobot@nndrobot.com',
+        'password' => 'a9qbm7UMtVxjjWk2',
+        'from_address' => 'nndrobot@nndrobot.com',
+        'from_name' => '新佰人机器人产研中心',
+    ],
 ];
