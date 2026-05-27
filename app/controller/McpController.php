@@ -143,8 +143,13 @@ class McpController
         
         set_time_limit(30);
         
+        $logFile = runtime_path() . 'mcp_debug.log';
+        file_put_contents($logFile, date('Y-m-d H:i:s') . " Tool '{$toolName}' arguments: " . json_encode($arguments, JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND);
+        
         try {
             $result = $tool->execute($arguments);
+            
+            file_put_contents($logFile, date('Y-m-d H:i:s') . " Tool '{$toolName}' result: " . json_encode($result, JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND);
             
             if (isset($result['success']) && $result['success'] === false) {
                 return McpResponseService::success($id, [
@@ -167,11 +172,23 @@ class McpController
                 ],
             ], $accept);
         } catch (\Exception $e) {
+            file_put_contents($logFile, date('Y-m-d H:i:s') . " Tool '{$toolName}' exception: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine() . "\n", FILE_APPEND);
             return McpResponseService::success($id, [
                 'content' => [
                     [
                         'type' => 'text',
                         'text' => "执行失败: " . $e->getMessage(),
+                    ]
+                ],
+                'isError' => true,
+            ], $accept);
+        } catch (\Error $e) {
+            file_put_contents($logFile, date('Y-m-d H:i:s') . " Tool '{$toolName}' fatal: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine() . "\n", FILE_APPEND);
+            return McpResponseService::success($id, [
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'text' => "执行致命错误: " . $e->getMessage(),
                     ]
                 ],
                 'isError' => true,
